@@ -12,8 +12,11 @@ add_executable(MyCobotDraw WIN32
     src/main.cpp
     src/AppWindow.cpp
     src/Whiteboard.cpp
+    src/SimView.cpp
     src/MyCobotSerial.cpp
+    src/PathPlan.cpp
     src/DrawingSender.cpp
+    src/Kinematics.cpp
 )
 
 target_include_directories(MyCobotDraw PRIVATE src)
