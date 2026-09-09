@@ -1,4 +1,8 @@
 #include "Whiteboard.h"
+
+#include "AppMessages.h"
+
+#include <cmath>
 #include <windowsx.h>
 
 namespace mycobot {
@@ -31,14 +35,34 @@ HWND Whiteboard::Create(HWND parent, HINSTANCE hInst, int x, int y, int w, int h
     return hwnd_;
 }
 
+void Whiteboard::NotifyParent() {
+    if (!hwnd_) return;
+    HWND parent = GetParent(hwnd_);
+    if (parent) PostMessageW(parent, WM_APP_STROKES_CHANGED, 0, 0);
+}
+
+void Whiteboard::RescaleStrokes(const SIZE& oldSize, const SIZE& newSize) {
+    if (oldSize.cx <= 0 || oldSize.cy <= 0 || newSize.cx <= 0 || newSize.cy <= 0) return;
+    double sx = static_cast<double>(newSize.cx) / oldSize.cx;
+    double sy = static_cast<double>(newSize.cy) / oldSize.cy;
+    for (auto& stroke : strokes_) {
+        for (auto& p : stroke) {
+            p.x = static_cast<LONG>(std::lround(p.x * sx));
+            p.y = static_cast<LONG>(std::lround(p.y * sy));
+        }
+    }
+}
+
 void Whiteboard::Clear() {
     strokes_.clear();
     if (hwnd_) InvalidateRect(hwnd_, nullptr, TRUE);
+    NotifyParent();
 }
 
 void Whiteboard::UndoLastStroke() {
     if (!strokes_.empty()) strokes_.pop_back();
     if (hwnd_) InvalidateRect(hwnd_, nullptr, TRUE);
+    NotifyParent();
 }
 
 void Whiteboard::PaintTo(HDC hdc, RECT client) {
@@ -91,7 +115,19 @@ LRESULT Whiteboard::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPa
                 ReleaseCapture();
                 // Drop degenerate single-point "strokes" (a click, not a drag).
                 if (!strokes_.empty() && strokes_.back().size() < 2) strokes_.pop_back();
+                NotifyParent();
             }
+            return 0;
+        }
+        case WM_SIZE: {
+            SIZE newSize{LOWORD(lParam), HIWORD(lParam)};
+            if (lastSize_.cx > 0 && (newSize.cx != lastSize_.cx || newSize.cy != lastSize_.cy)) {
+                // The canvas maps onto a fixed sheet of paper, so a resize has
+                // to carry the drawing with it or the plan would silently shift.
+                RescaleStrokes(lastSize_, newSize);
+                NotifyParent();
+            }
+            lastSize_ = newSize;
             return 0;
         }
         case WM_PAINT: {

@@ -35,11 +35,17 @@ private:
     LRESULT HandleMessage(HWND, UINT, WPARAM, LPARAM);
 
     void PaintTo(HDC hdc, RECT client);
+    // Tells the parent window that the stroke list changed, so it can refresh
+    // the planned path shown in the 3D simulation view.
+    void NotifyParent();
+    // Keeps a drawing anchored to the paper when the canvas is resized.
+    void RescaleStrokes(const SIZE& oldSize, const SIZE& newSize);
 
     HWND hwnd_ = nullptr;
     std::vector<Stroke> strokes_;
     bool drawing_ = false;
     bool inputEnabled_ = true;
+    SIZE lastSize_{0, 0};
 };
 
 } // namespace mycobot
